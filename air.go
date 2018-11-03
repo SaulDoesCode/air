@@ -2,7 +2,6 @@ package air
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/integrii/flaggy"
 )
 
 // AppName is the name of the current web application.
@@ -213,9 +213,18 @@ var AssetExts = []string{
 var Config = obj{}
 
 func init() {
-	cf := flag.String("config", "./private/config.toml", "configuration file")
-	flag.Parse()
-	if b, err := ioutil.ReadFile(*cf); err != nil {
+	var cf string
+	flaggy.String(&cf, "c", "config", "configuration file")
+
+	if cf == "" {
+		cf = "./private/config.toml"
+	}
+
+	flaggy.Bool(&DebugMode, "dev", "devmode", "put the server into dev mode for extra logging and checks")
+
+	flaggy.Parse()
+
+	if b, err := ioutil.ReadFile(cf); err != nil {
 		if !os.IsNotExist(err) {
 			panic(fmt.Errorf(
 				"air: failed to read configuration file: %v",
@@ -234,6 +243,8 @@ func init() {
 	}
 
 	if v, ok := Config["debug_mode"].(bool); ok {
+		DebugMode = v
+	} else if v, ok := Config["dev_mode"].(bool); ok {
 		DebugMode = v
 	}
 
