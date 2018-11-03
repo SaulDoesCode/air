@@ -40,7 +40,7 @@ func init() {
 			case e := <-theRenderer.watcher.Events:
 				DEBUG(
 					"air: template file event occurs",
-					map[string]interface{}{
+					obj{
 						"file":  e.Name,
 						"event": e.Op.String(),
 					},
@@ -49,7 +49,7 @@ func init() {
 			case err := <-theRenderer.watcher.Errors:
 				ERROR(
 					"air: renderer watcher error",
-					map[string]interface{}{
+					obj{
 						"error": err.Error(),
 					},
 				)
@@ -63,7 +63,6 @@ func (r *renderer) render(
 	w io.Writer,
 	name string,
 	v interface{},
-	locstr func(string) string,
 ) error {
 	r.once.Do(func() {
 		tr, err := filepath.Abs(TemplateRoot)
@@ -71,7 +70,7 @@ func (r *renderer) render(
 			ERROR(
 				"air: failed to get absolute representation "+
 					"of template root",
-				map[string]interface{}{
+				obj{
 					"error": err.Error(),
 				},
 			)
@@ -82,11 +81,7 @@ func (r *renderer) render(
 		r.template = template.
 			New("template").
 			Delims(TemplateLeftDelim, TemplateRightDelim).
-			Funcs(template.FuncMap{
-				"locstr": func(key string) string {
-					return key
-				},
-			}).
+			Funcs(template.FuncMap{}).
 			Funcs(TemplateFuncMap)
 		if err := filepath.Walk(
 			tr,
@@ -124,23 +119,12 @@ func (r *renderer) render(
 		); err != nil {
 			ERROR(
 				"air: failed to walk template files",
-				map[string]interface{}{
+				obj{
 					"error": err.Error(),
 				},
 			)
 		}
 	})
-
-	if locstr != nil {
-		t, err := r.template.Clone()
-		if err != nil {
-			return err
-		}
-
-		return t.Funcs(template.FuncMap{
-			"locstr": locstr,
-		}).ExecuteTemplate(w, name, v)
-	}
 
 	return r.template.ExecuteTemplate(w, name, v)
 }

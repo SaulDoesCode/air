@@ -40,7 +40,7 @@ func init() {
 				if CofferEnabled {
 					DEBUG(
 						"air: asset file event occurs",
-						map[string]interface{}{
+						obj{
 							"file":  e.Name,
 							"event": e.Op.String(),
 						},
@@ -52,7 +52,7 @@ func init() {
 				if CofferEnabled {
 					ERROR(
 						"air: coffer watcher error",
-						map[string]interface{}{
+						obj{
 							"error": err.Error(),
 						},
 					)

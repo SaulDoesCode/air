@@ -69,7 +69,7 @@ func (ll LoggerLevel) String() string {
 }
 
 // log logs the m at the ll with the optional es.
-func (l *logger) log(ll LoggerLevel, m string, es ...map[string]interface{}) {
+func (l *logger) log(ll LoggerLevel, m string, es ...obj) {
 	if ll < LoggerLowestLevel {
 		return
 	}
@@ -77,7 +77,7 @@ func (l *logger) log(ll LoggerLevel, m string, es ...map[string]interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	fs := map[string]interface{}{
+	fs := obj{
 		"app_name": AppName,
 		"time":     time.Now().UnixNano(),
 		"level":    ll.String(),
