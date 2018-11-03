@@ -12,8 +12,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.2.2
-	github.com/tdewolff/minify v2.3.6+incompatible
-	github.com/tdewolff/parse v2.3.3+incompatible // indirect
+	github.com/tdewolff/minify v2.3.8-0.20181101065125-1920ee718c16+incompatible
+	github.com/tdewolff/parse v2.3.5-0.20181101065215-3b56c4a41542+incompatible // indirect
 	github.com/tdewolff/test v1.0.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.1+incompatible
 	golang.org/x/crypto v0.0.0-20181025213731-e84da0312774

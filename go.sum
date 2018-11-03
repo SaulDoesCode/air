@@ -25,10 +25,10 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
-github.com/tdewolff/minify v2.3.6+incompatible h1:2hw5/9ZvxhWLvBUnHE06gElGYz+Jv9R4Eys0XUzItYo=
-github.com/tdewolff/minify v2.3.6+incompatible/go.mod h1:9Ov578KJUmAWpS6NeZwRZyT56Uf6o3Mcz9CEsg8USYs=
-github.com/tdewolff/parse v2.3.3+incompatible h1:q6OSjvHtvBucLb34z24OH1xl5wGdw1mI9Vd38Qj9evs=
-github.com/tdewolff/parse v2.3.3+incompatible/go.mod h1:8oBwCsVmUkgHO8M5iCzSIDtpzXOT0WXX9cWhz+bIzJQ=
+github.com/tdewolff/minify v2.3.8-0.20181101065125-1920ee718c16+incompatible h1:NUIFjRnhP477SvkomaFBfYS4nvKUiaZkY1LUverjcmc=
+github.com/tdewolff/minify v2.3.8-0.20181101065125-1920ee718c16+incompatible/go.mod h1:9Ov578KJUmAWpS6NeZwRZyT56Uf6o3Mcz9CEsg8USYs=
+github.com/tdewolff/parse v2.3.5-0.20181101065215-3b56c4a41542+incompatible h1:qnrYarRqs7sDpm0h86oZX7wfVWeCG/0XT5aIa4w4PTY=
+github.com/tdewolff/parse v2.3.5-0.20181101065215-3b56c4a41542+incompatible/go.mod h1:8oBwCsVmUkgHO8M5iCzSIDtpzXOT0WXX9cWhz+bIzJQ=
 github.com/tdewolff/test v1.0.0 h1:jOwzqCXr5ePXEPGJaq2ivoR6HOCi+D5TPfpoyg8yvmU=
 github.com/tdewolff/test v1.0.0/go.mod h1:DiQUlutnqlEvdvhSn2LPGy4TFwRauAaYDsL+683RNX4=
 github.com/vmihailenco/msgpack v4.0.1+incompatible h1:RMF1enSPeKTlXrXdOcqjFUElywVZjjC6pqse21bKbEU=
