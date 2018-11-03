@@ -72,6 +72,9 @@ var IdleTimeout = time.Duration(0)
 // It is called "max_header_bytes" in the configuration file.
 var MaxHeaderBytes = 1 << 20
 
+// MaintainerEmail is used for autocert/letsencrypt
+var MaintainerEmail = ""
+
 // TLSCertFile is the path to the TLS certificate file used when starting the
 // server.
 //
@@ -170,7 +173,7 @@ var TemplateRightDelim = "}}"
 
 // TemplateFuncMap is the HTML template function map the renderer renders the
 // HTML templates.
-var TemplateFuncMap = map[string]interface{}{
+var TemplateFuncMap = obj{
 	"strlen":  strlen,
 	"substr":  substr,
 	"timefmt": timefmt,
@@ -204,30 +207,13 @@ var AssetExts = []string{
 	".gif",
 }
 
-// I18nEnabled indicates whether the i18n is enabled.
-//
-// It is called "i18n_enabled" in the configuration file.
-var I18nEnabled = false
-
-// LocaleRoot is the root of the locale files. All the locale files inside it
-// will be parsed into the i18n.
-//
-// It is called "locale_root" in the configuration file.
-var LocaleRoot = "locales"
-
-// LocaleBase is the base of the locale files. It will be used when a locale
-// file cannot be found.
-//
-// It is called "locale_base" in the configuration file.
-var LocaleBase = "en-US"
-
 // Config is a set of key-value pairs parsed from the configuration file found
 // in the path specified by a command-line flag named "config". The default path
 // of the configuration file is "config.toml".
-var Config = map[string]interface{}{}
+var Config = obj{}
 
 func init() {
-	cf := flag.String("config", "config.toml", "configuration file")
+	cf := flag.String("config", "./private/config.toml", "configuration file")
 	flag.Parse()
 	if b, err := ioutil.ReadFile(*cf); err != nil {
 		if !os.IsNotExist(err) {
@@ -301,6 +287,10 @@ func init() {
 
 	if v, ok := Config["max_header_bytes"].(int64); ok {
 		MaxHeaderBytes = int(v)
+	}
+
+	if v, ok := Config["maintainer_email"].(string); ok {
+		MaintainerEmail = v
 	}
 
 	if v, ok := Config["tls_cert_file"].(string); ok {
@@ -380,50 +370,38 @@ func init() {
 			}
 		}
 	}
-
-	if v, ok := Config["i18n_enabled"].(bool); ok {
-		I18nEnabled = v
-	}
-
-	if v, ok := Config["locale_root"].(string); ok {
-		LocaleRoot = v
-	}
-
-	if v, ok := Config["locale_base"].(string); ok {
-		LocaleBase = v
-	}
 }
 
 // DEBUG logs the msg at the `LoggerLevelDebug` with the optional extras.
-func DEBUG(msg string, extras ...map[string]interface{}) {
+func DEBUG(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelDebug, msg, extras...)
 }
 
 // INFO logs the msg at the `LoggerLevelInfo` with the optional extras.
-func INFO(msg string, extras ...map[string]interface{}) {
+func INFO(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelInfo, msg, extras...)
 }
 
 // WARN logs the msg at the `LoggerLevelWarn` with the optional extras.
-func WARN(msg string, extras ...map[string]interface{}) {
+func WARN(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelWarn, msg, extras...)
 }
 
 // ERROR logs the msg at the `LoggerLevelError` with the optional extras.
-func ERROR(msg string, extras ...map[string]interface{}) {
+func ERROR(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelError, msg, extras...)
 }
 
 // FATAL logs the msg at the `LoggerLevelFatal` with the optional extras
 // followed by a call to `os.Exit(1)`.
-func FATAL(msg string, extras ...map[string]interface{}) {
+func FATAL(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelFatal, msg, extras...)
 	os.Exit(1)
 }
 
 // PANIC logs the msg at the `LoggerLevelPanic` with the optional extras
 // followed by a call to `panic()`.
-func PANIC(msg string, extras ...map[string]interface{}) {
+func PANIC(msg string, extras ...obj) {
 	theLogger.log(LoggerLevelPanic, msg, extras...)
 	panic(msg)
 }
@@ -488,7 +466,7 @@ func STATIC(prefix, root string, gases ...Gas) {
 	h := func(req *Request, res *Response) error {
 		err := res.WriteFile(filepath.Join(
 			root,
-			req.Params["*"].FirstValue().String(),
+			req.Params["*"].Value().String(),
 		))
 		if os.IsNotExist(err) {
 			return NotFoundHandler(req, res)
@@ -519,19 +497,19 @@ func FILE(path, filename string, gases ...Gas) {
 
 // Serve starts the server.
 func Serve() error {
-	return theServer.serve()
+	return TheServer.serve()
 }
 
 // Close closes the server immediately.
 func Close() error {
-	return theServer.close()
+	return TheServer.close()
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active
 // connections until timeout. It waits indefinitely for connections to return to
 // idle and then shut down when the timeout is less than or equal to zero.
 func Shutdown(timeout time.Duration) error {
-	return theServer.shutdown(timeout)
+	return TheServer.shutdown(timeout)
 }
 
 // Handler defines a function to serve requests.
@@ -551,3 +529,4 @@ var MethodNotAllowedHandler = func(req *Request, res *Response) error {
 
 // Gas defines a function to process gases.
 type Gas func(Handler) Handler
+type obj = map[string]interface{}
