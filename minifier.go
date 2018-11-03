@@ -66,9 +66,7 @@ func (m *minifier) minify(mimeType string, b []byte) ([]byte, error) {
 				return err
 			}
 
-			return (&png.Encoder{
-				CompressionLevel: png.BestCompression,
-			}).Encode(w, img)
+			return (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(w, img)
 		})
 	})
 
