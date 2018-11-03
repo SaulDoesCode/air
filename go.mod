@@ -1,4 +1,4 @@
-module github.com/aofei/air
+module github.com/sauldoescode/air
 
 require (
 	github.com/BurntSushi/toml v0.3.1
