@@ -25,10 +25,9 @@ type Request struct {
 	Params        map[string]*RequestParam
 	RemoteAddress string
 	ClientAddress string
-	Values        map[string]interface{}
+	Values        obj
 
 	request          *http.Request
-	localizedString  func(string) string
 	parseCookiesOnce *sync.Once
 	parseParamsOnce  *sync.Once
 }
@@ -36,17 +35,6 @@ type Request struct {
 // Bind binds the r into the v.
 func (r *Request) Bind(v interface{}) error {
 	return theBinder.bind(v, r)
-}
-
-// LocalizedString returns localized string for the key.
-//
-// It only works if the `I18nEnabled` is true.
-func (r *Request) LocalizedString(key string) string {
-	if r.localizedString != nil {
-		return r.localizedString(key)
-	}
-
-	return key
 }
 
 // ParseCookies parses the cookies sent with the r into the `r.Cookies`.
@@ -97,6 +85,16 @@ func (r *Request) ParseCookies() {
 			}
 		}
 	})
+}
+
+// Param returns a Route Param's string value if it exists
+func (r *Request) Param(name string) string {
+	if rp, ok := r.Params[name]; ok {
+		if len(rp.Values) != 0 {
+			return rp.Value().String()
+		}
+	}
+	return ""
 }
 
 // ParseParams parses the params sent with the r into the `r.Params`.
@@ -182,9 +180,9 @@ type RequestParam struct {
 	Values []*RequestParamValue
 }
 
-// FirstValue returns the first value of the rp. It returns nil if the rp is nil
+// Value returns the first value of the rp. It returns nil if the rp is nil
 // or there are no values.
-func (rp *RequestParam) FirstValue() *RequestParamValue {
+func (rp *RequestParam) Value() *RequestParamValue {
 	if rp == nil || len(rp.Values) == 0 {
 		return nil
 	}
