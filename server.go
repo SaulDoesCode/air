@@ -61,7 +61,7 @@ func (s *server) serve() error {
 		}
 
 		tlsCertFile, tlsKeyFile := TLSCertFile, TLSKeyFile
-		if tlsCertFile == "Let's Encrypt" && tlsKeyFile == tlsCertFile {
+		if AutoCert && !(DevAutoCert && DebugMode) {
 			acm := autocert.Manager{
 				Prompt: autocert.AcceptTOS,
 				Cache:  autocert.DirCache(ACMECertRoot),

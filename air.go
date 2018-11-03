@@ -18,10 +18,16 @@ import (
 // It is called "app_name" in the configuration file.
 var AppName = "air"
 
+// AutoCert sets whether or not to use let's encrypt for TLS
+var AutoCert = false
+
 // DebugMode indicates whether the current web application is in debug mode.
 //
 // It is called "debug_mode" in the configuration file.
 var DebugMode = false
+
+// DevAutoCert don't run autocert if DebugMode/DevMode is on
+var DevAutoCert = false
 
 // LoggerLowestLevel is the lowest level of the logger.
 //
@@ -215,14 +221,13 @@ var Config = obj{}
 func init() {
 	var cf string
 	flaggy.String(&cf, "c", "config", "configuration file")
+	flaggy.Bool(&DebugMode, "dev", "devmode", "put the server into dev mode for extra logging and checks")
+
+	flaggy.Parse()
 
 	if cf == "" {
 		cf = "./private/config.toml"
 	}
-
-	flaggy.Bool(&DebugMode, "dev", "devmode", "put the server into dev mode for extra logging and checks")
-
-	flaggy.Parse()
 
 	if b, err := ioutil.ReadFile(cf); err != nil {
 		if !os.IsNotExist(err) {
@@ -240,6 +245,14 @@ func init() {
 
 	if v, ok := Config["app_name"].(string); ok {
 		AppName = v
+	}
+
+	if v, ok := Config["autocert"].(bool); ok {
+		AutoCert = v
+
+		if v, ok := Config["dev_autocert"].(bool); ok {
+			DevAutoCert = v
+		}
 	}
 
 	if v, ok := Config["debug_mode"].(bool); ok {
