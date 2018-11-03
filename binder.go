@@ -1,11 +1,13 @@
 package air
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"mime"
 	"reflect"
+
+	"github.com/json-iterator/go"
+	"github.com/vmihailenco/msgpack"
 )
 
 // binder is a binder that binds request based on the MIME types.
@@ -23,7 +25,7 @@ func (b *binder) bind(v interface{}, r *Request) error {
 	}
 
 	mt, _, err := mime.ParseMediaType(
-		r.Headers["content-type"].FirstValue(),
+		r.Headers["content-type"].Value(),
 	)
 	if err != nil {
 		return err
@@ -31,7 +33,9 @@ func (b *binder) bind(v interface{}, r *Request) error {
 
 	switch mt {
 	case "application/json":
-		err = json.NewDecoder(r.Body).Decode(v)
+		err = jsoniter.NewDecoder(r.Body).Decode(v)
+	case "application/msgpack":
+		err = msgpack.NewDecoder(r.Body).Decode(v)
 	case "application/xml":
 		err = xml.NewDecoder(r.Body).Decode(v)
 	case "application/x-www-form-urlencoded", "multipart/form-data":
@@ -76,7 +80,7 @@ func (b *binder) bindParams(
 
 		tf := typ.Field(i)
 
-		pv := params[tf.Name].FirstValue()
+		pv := params[tf.Name].Value()
 		if pv == nil {
 			continue
 		}
