@@ -14,8 +14,8 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	assert.NotNil(t, theServer)
-	assert.NotNil(t, theServer.server)
+	assert.NotNil(t, TheServer)
+	assert.NotNil(t, TheServer.Server)
 }
 
 func TestServerServe(t *testing.T) {
@@ -29,14 +29,14 @@ func TestServerServe(t *testing.T) {
 	LoggerOutput = &buf
 
 	go func() {
-		assert.Error(t, http.ErrServerClosed, theServer.serve())
+		assert.Error(t, http.ErrServerClosed, TheServer.serve())
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
-	ss := theServer.server
+	ss := TheServer.Server
 	assert.Equal(t, Address, ss.Addr)
-	assert.Equal(t, theServer, ss.Handler)
+	assert.Equal(t, TheServer, ss.Handler)
 	assert.Equal(t, IdleTimeout, ss.IdleTimeout)
 	assert.Equal(t, LoggerLowestLevel, LoggerLevelDebug)
 
@@ -44,12 +44,12 @@ func TestServerServe(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(buf.Bytes(), &m))
 	assert.Equal(t, "air: serving in debug mode", m["message"])
 
-	assert.NoError(t, theServer.close())
+	assert.NoError(t, TheServer.close())
 
 	DebugMode = false
 	LoggerLowestLevel = LoggerLevelDebug
 	LoggerOutput = os.Stdout
-	theServer.server = &http.Server{}
+	TheServer.Server = &http.Server{}
 }
 
 func TestServerServeTLS(t *testing.T) {
@@ -133,15 +133,15 @@ l7j2fuWjNfj9JfnXoP2SEgPG
 	keyFile.WriteString(key)
 
 	go func() {
-		assert.Error(t, http.ErrServerClosed, theServer.serve())
+		assert.Error(t, http.ErrServerClosed, TheServer.serve())
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
-	assert.NoError(t, theServer.shutdown(0))
-	assert.NoError(t, theServer.shutdown(1))
+	assert.NoError(t, TheServer.shutdown(0))
+	assert.NoError(t, TheServer.shutdown(1))
 
-	theServer.server = &http.Server{}
+	TheServer.Server = &http.Server{}
 }
 
 func TestServerSeveHTTP(t *testing.T) {
@@ -182,20 +182,20 @@ func TestServerSeveHTTP(t *testing.T) {
 	)
 
 	go func() {
-		assert.Error(t, http.ErrServerClosed, theServer.serve())
+		assert.Error(t, http.ErrServerClosed, TheServer.serve())
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	rec := httptest.NewRecorder()
-	theServer.ServeHTTP(rec, req)
+	TheServer.ServeHTTP(rec, req)
 
 	assert.Equal(t, "Pregas\nGas\nRoute gas\nHandler", buf.String())
 	assert.Equal(t, 500, rec.Code)
 	assert.Equal(t, "internal server error", rec.Body.String())
 
-	theServer.server = &http.Server{}
+	TheServer.Server = &http.Server{}
 
 	LoggerLowestLevel = LoggerLevelDebug
 }

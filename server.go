@@ -14,24 +14,25 @@ import (
 
 // server is an HTTP server.
 type server struct {
-	server *http.Server
+	Server *http.Server
+	NonTLS *http.Server
 }
 
-// theServer is the singleton of the `server`.
-var theServer = &server{
-	server: &http.Server{},
+// TheServer is the singleton of the `server`.
+var TheServer = &server{
+	Server: &http.Server{},
 }
 
 // serve starts the s.
 func (s *server) serve() error {
-	s.server.Addr = Address
-	s.server.Handler = s
-	s.server.ReadTimeout = ReadTimeout
-	s.server.ReadHeaderTimeout = ReadHeaderTimeout
-	s.server.WriteTimeout = WriteTimeout
-	s.server.IdleTimeout = IdleTimeout
-	s.server.MaxHeaderBytes = MaxHeaderBytes
-	s.server.ErrorLog = log.New(&serverErrorLogWriter{}, "air: ", 0)
+	s.Server.Addr = Address
+	s.Server.Handler = s
+	s.Server.ReadTimeout = ReadTimeout
+	s.Server.ReadHeaderTimeout = ReadHeaderTimeout
+	s.Server.WriteTimeout = WriteTimeout
+	s.Server.IdleTimeout = IdleTimeout
+	s.Server.MaxHeaderBytes = MaxHeaderBytes
+	s.Server.ErrorLog = log.New(&serverErrorLogWriter{}, "air: ", 0)
 
 	if DebugMode {
 		LoggerLowestLevel = LoggerLevelDebug
@@ -39,13 +40,15 @@ func (s *server) serve() error {
 	}
 
 	if TLSCertFile != "" && TLSKeyFile != "" {
-		host := s.server.Addr
+		host := s.Server.Addr
 		if strings.Contains(host, ":") {
 			var err error
 			if host, _, err = net.SplitHostPort(host); err != nil {
 				return err
 			}
 		}
+
+		s.NonTLS = &http.Server{}
 
 		var h2hs http.HandlerFunc
 		h2hs = func(rw http.ResponseWriter, r *http.Request) {
@@ -69,41 +72,56 @@ func (s *server) serve() error {
 				)
 			}
 
-			go http.ListenAndServe(
-				host+":http",
-				acm.HTTPHandler(h2hs),
-			)
+			if MaintainerEmail != "" {
+				acm.Email = MaintainerEmail
+			}
 
-			s.server.Addr = host + ":https"
-			s.server.TLSConfig = acm.TLSConfig()
+			s.NonTLS.Handler = acm.HTTPHandler(h2hs)
+			s.NonTLS.Addr = host + ":http"
+			go s.NonTLS.ListenAndServe()
+
+			s.Server.Addr = host + ":https"
+			s.Server.TLSConfig = acm.TLSConfig()
 			tlsCertFile, tlsKeyFile = "", ""
 		} else if HTTPSEnforced {
-			go http.ListenAndServe(host+":http", h2hs)
+			s.NonTLS.Handler = h2hs
+			s.NonTLS.Addr = host + ":http"
+			go s.NonTLS.ListenAndServe()
 		}
 
-		return s.server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+		return s.Server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
 	}
 
-	return s.server.ListenAndServe()
+	return s.Server.ListenAndServe()
 }
 
 // close closes the s immediately.
 func (s *server) close() error {
-	return s.server.Close()
+	if s.NonTLS != nil {
+		s.NonTLS.Close()
+	}
+	return s.Server.Close()
 }
 
 // shutdown gracefully shuts down the s without interrupting any active
 // connections until timeout. It waits indefinitely for connections to return to
 // idle and then shut down when the timeout is less than or equal to zero.
 func (s *server) shutdown(timeout time.Duration) error {
+	ctx := context.Background()
 	if timeout <= 0 {
-		return s.server.Shutdown(context.Background())
+		if s.NonTLS != nil {
+			s.NonTLS.Shutdown(ctx)
+		}
+		return s.Server.Shutdown(ctx)
 	}
 
 	c, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	return s.server.Shutdown(c)
+	if s.NonTLS != nil {
+		s.NonTLS.Shutdown(c)
+	}
+	return s.Server.Shutdown(c)
 }
 
 // ServeHTTP implements the `http.Handler`.
@@ -158,7 +176,7 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		),
 		RemoteAddress: r.RemoteAddr,
 		ClientAddress: r.RemoteAddr,
-		Values:        map[string]interface{}{},
+		Values:        obj{},
 
 		request:          r,
 		parseCookiesOnce: &sync.Once{},
@@ -174,11 +192,10 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			Name:   strings.ToLower(n),
 			Values: vs,
 		}
-
 		req.Headers[h.Name] = h
 	}
 
-	if f := req.Headers["forwarded"].FirstValue(); f != "" { // See RFC 7239
+	if f := req.Headers["forwarded"].Value(); f != "" { // See RFC 7239
 		for _, p := range strings.Split(strings.Split(f, ",")[0], ";") {
 			p := strings.TrimSpace(p)
 			if strings.HasPrefix(p, "for=") {
@@ -189,14 +206,9 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-	} else if xff := req.Headers["x-forwarded-for"].FirstValue(); xff !=
-		"" {
-		req.ClientAddress = strings.TrimSpace(
-			strings.Split(xff, ",")[0],
-		)
+	} else if xff := req.Headers["x-forwarded-for"].Value(); xff != "" {
+		req.ClientAddress = strings.TrimSpace(strings.Split(xff, ",")[0])
 	}
-
-	theI18n.localize(req)
 
 	// Response
 
