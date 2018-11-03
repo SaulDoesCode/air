@@ -3,7 +3,6 @@ package air
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -23,6 +22,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/json-iterator/go"
+	"github.com/vmihailenco/msgpack"
 	"golang.org/x/net/html"
 )
 
@@ -36,6 +37,25 @@ type Response struct {
 
 	request *Request
 	writer  http.ResponseWriter
+}
+
+// Header Get a Header if it exists
+func (r *Response) Header(name string) (string, bool) {
+	val, ok := r.Headers[name]
+	if ok {
+		return val.Value(), ok
+	}
+	return "", ok
+}
+
+// SetHeader adds a header to the response
+func (r *Response) SetHeader(name string, values ...string) {
+	r.Headers[name] = &Header{Name: name, Values: values}
+}
+
+// SetHeaderValues adds a header to the response with an array of string values
+func (r *Response) SetHeaderValues(name string, values []string) {
+	r.Headers[name] = &Header{Name: name, Values: values}
 }
 
 // Write responds to the client with the content.
@@ -52,10 +72,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 		}
 
 		if HTTPSEnforced {
-			r.Headers["strict-transport-security"] = &Header{
-				Name:   "strict-transport-security",
-				Values: []string{"max-age=31536000"},
-			}
+			r.SetHeader("strict-transport-security", "max-age=31536000")
 		}
 
 		if reader != nil && r.ContentLength == 0 {
@@ -64,22 +81,14 @@ func (r *Response) Write(content io.ReadSeeker) error {
 		}
 
 		if r.Status >= 200 && r.Status < 400 {
-			r.Headers["accept-ranges"] = &Header{
-				Name:   "accept-ranges",
-				Values: []string{"bytes"},
-			}
+			r.SetHeader("accept-ranges", "bytes")
 		}
 
-		if r.Headers["content-encoding"].FirstValue() == "" &&
+		if r.Headers["content-encoding"].Value() == "" &&
 			r.Status >= 200 &&
 			r.Status != 204 &&
 			(r.Status >= 300 || r.request.Method != "CONNECT") {
-			r.Headers["content-length"] = &Header{
-				Name: "content-length",
-				Values: []string{
-					strconv.FormatInt(r.ContentLength, 10),
-				},
-			}
+			r.SetHeader("content-length", strconv.FormatInt(r.ContentLength, 10))
 		}
 
 		if len(r.Cookies) > 0 {
@@ -88,10 +97,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 				vs = append(vs, c.String())
 			}
 
-			r.Headers["set-cookie"] = &Header{
-				Name:   "set-cookie",
-				Values: vs,
-			}
+			r.SetHeaderValues("set-cookie", vs)
 		}
 
 		for n, h := range r.Headers {
@@ -112,12 +118,12 @@ func (r *Response) Write(content io.ReadSeeker) error {
 		return nil
 	}
 
-	im := r.request.Headers["if-match"].FirstValue()
-	et := r.Headers["etag"].FirstValue()
+	im := r.request.Headers["if-match"].Value()
+	et := r.Headers["etag"].Value()
 	ius, _ := http.ParseTime(
-		r.request.Headers["if-unmodified-since"].FirstValue(),
+		r.request.Headers["if-unmodified-since"].Value(),
 	)
-	lm, _ := http.ParseTime(r.Headers["last-modified"].FirstValue())
+	lm, _ := http.ParseTime(r.Headers["last-modified"].Value())
 	if im != "" {
 		matched := false
 		for {
@@ -156,9 +162,9 @@ func (r *Response) Write(content io.ReadSeeker) error {
 		r.Status = 412
 	}
 
-	inm := r.request.Headers["if-none-match"].FirstValue()
+	inm := r.request.Headers["if-none-match"].Value()
 	ims, _ := http.ParseTime(
-		r.request.Headers["if-modified-since"].FirstValue(),
+		r.request.Headers["if-modified-since"].Value(),
 	)
 	if inm != "" {
 		noneMatched := true
@@ -182,7 +188,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 				break
 			}
 
-			if eTagWeakMatch(eTag, r.Headers["etag"].FirstValue()) {
+			if eTagWeakMatch(eTag, r.Headers["etag"].Value()) {
 				noneMatched = false
 				break
 			}
@@ -213,7 +219,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 		return nil
 	}
 
-	ct := r.Headers["content-type"].FirstValue()
+	ct := r.Headers["content-type"].Value()
 	if ct == "" {
 		// Read a chunk to decide between UTF-8 text and binary
 		b := [1 << 9]byte{}
@@ -223,10 +229,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 			return err
 		}
 
-		r.Headers["content-type"] = &Header{
-			Name:   "content-type",
-			Values: []string{ct},
-		}
+		r.SetHeader("content-type", ct)
 	}
 
 	size, err := content.Seek(0, io.SeekEnd)
@@ -238,12 +241,12 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 	r.ContentLength = size
 
-	rh := r.request.Headers["range"].FirstValue()
+	rh := r.request.Headers["range"].Value()
 	if rh == "" {
 		canWrite = true
 		return nil
 	} else if r.request.Method == "GET" || r.request.Method == "HEAD" {
-		if ir := r.request.Headers["if-range"].FirstValue(); ir != "" {
+		if ir := r.request.Headers["if-range"].Value(); ir != "" {
 			if eTag, _ := scanETag(ir); eTag != "" &&
 				!eTagStrongMatch(eTag, et) {
 				canWrite = true
@@ -340,11 +343,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 	if noOverlap && len(ranges) == 0 {
 		// The specified ranges did not overlap with the content.
-		r.Headers["content-range"] = &Header{
-			Name:   "content-range",
-			Values: []string{fmt.Sprintf("bytes */%d", size)},
-		}
-
+		r.SetHeader("content-range", fmt.Sprintf("bytes */%d", size))
 		r.Status = 416
 
 		return errors.New("invalid range: failed to overlap")
@@ -378,10 +377,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 		r.ContentLength = ra.length
 		r.Status = 206
-		r.Headers["content-range"] = &Header{
-			Name:   "content-range",
-			Values: []string{ra.contentRange(size)},
-		}
+		r.SetHeader("content-range", ra.contentRange(size))
 	} else if l > 1 {
 		var w countingWriter
 		mw := multipart.NewWriter(&w)
@@ -397,13 +393,9 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 		pr, pw := io.Pipe()
 		mw = multipart.NewWriter(pw)
-		r.Headers["content-type"] = &Header{
-			Name: "content-type",
-			Values: []string{
-				"multipart/byteranges; boundary=" +
-					mw.Boundary(),
-			},
-		}
+
+		r.SetHeader("content-type", "multipart/byteranges; boundary="+mw.Boundary())
+
 		reader = pr
 		defer pr.Close()
 		go func() {
@@ -444,7 +436,7 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 // WriteBlob responds to the client with the content b.
 func (r *Response) WriteBlob(b []byte) error {
-	if ct := r.Headers["content-type"].FirstValue(); ct != "" {
+	if ct := r.Headers["content-type"].Value(); ct != "" {
 		var err error
 		if b, err = theMinifier.minify(ct, b); err != nil {
 			return err
@@ -456,11 +448,7 @@ func (r *Response) WriteBlob(b []byte) error {
 
 // WriteString responds to the client with the "text/plain" content s.
 func (r *Response) WriteString(s string) error {
-	r.Headers["content-type"] = &Header{
-		Name:   "content-type",
-		Values: []string{"text/plain; charset=utf-8"},
-	}
-
+	r.SetHeader("content-type", "text/plain; charset=utf-8")
 	return r.WriteBlob([]byte(s))
 }
 
@@ -472,20 +460,32 @@ func (r *Response) WriteJSON(v interface{}) error {
 	)
 
 	if DebugMode {
-		b, err = json.MarshalIndent(v, "", "\t")
+		b, err = jsoniter.MarshalIndent(v, "", "\t")
 	} else {
-		b, err = json.Marshal(v)
+		b, err = jsoniter.Marshal(v)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	r.Headers["content-type"] = &Header{
-		Name:   "content-type",
-		Values: []string{"application/json; charset=utf-8"},
+	r.SetHeader("content-type", "application/json; charset=utf-8")
+	return r.WriteBlob(b)
+}
+
+// WriteMsgPack responds to the client with the "application/msgpack" content v.
+func (r *Response) WriteMsgPack(v interface{}) error {
+	var (
+		b   []byte
+		err error
+	)
+
+	b, err = msgpack.Marshal(v)
+	if err != nil {
+		return err
 	}
 
+	r.SetHeader("content-type", "application/msgpack")
 	return r.WriteBlob(b)
 }
 
@@ -507,11 +507,8 @@ func (r *Response) WriteXML(v interface{}) error {
 	}
 
 	b = append([]byte(xml.Header), b...)
-	r.Headers["content-type"] = &Header{
-		Name:   "content-type",
-		Values: []string{"application/xml; charset=utf-8"},
-	}
 
+	r.SetHeader("content-type", "application/xml; charset=utf-8")
 	return r.WriteBlob(b)
 }
 
@@ -557,11 +554,7 @@ func (r *Response) WriteHTML(h string) error {
 		f(tree)
 	}
 
-	r.Headers["content-type"] = &Header{
-		Name:   "content-type",
-		Values: []string{"text/html; charset=utf-8"},
-	}
-
+	r.SetHeader("content-type", "text/html; charset=utf-8")
 	return r.WriteBlob([]byte(h))
 }
 
@@ -573,7 +566,7 @@ func (r *Response) Render(m map[string]interface{}, templates ...string) error {
 	for _, t := range templates {
 		m["InheritedHTML"] = template.HTML(buf.String())
 		buf.Reset()
-		err := theRenderer.render(&buf, t, m, r.request.localizedString)
+		err := theRenderer.render(&buf, t, m)
 		if err != nil {
 			return err
 		}
@@ -627,7 +620,7 @@ func (r *Response) WriteFile(filename string) error {
 		mt = fi.ModTime()
 	}
 
-	if r.Headers["content-type"].FirstValue() == "" {
+	if r.Headers["content-type"].Value() == "" {
 		ct := mime.TypeByExtension(filepath.Ext(filename))
 		if ct == "" {
 			// Read a chunk to decide between UTF-8 text and binary
@@ -639,29 +632,20 @@ func (r *Response) WriteFile(filename string) error {
 			}
 		}
 
-		r.Headers["content-type"] = &Header{
-			Name:   "content-type",
-			Values: []string{ct},
-		}
+		r.SetHeader("content-type", ct)
 	}
 
-	if r.Headers["etag"].FirstValue() == "" {
+	if r.Headers["etag"].Value() == "" {
 		h := sha256.New()
 		if _, err := io.Copy(h, c); err != nil {
 			return err
 		}
 
-		r.Headers["etag"] = &Header{
-			Name:   "etag",
-			Values: []string{fmt.Sprintf(`"%x"`, h.Sum(nil))},
-		}
+		r.SetHeader("etag", fmt.Sprintf(`"%x"`, h.Sum(nil)))
 	}
 
-	if r.Headers["last-modified"].FirstValue() == "" {
-		r.Headers["last-modified"] = &Header{
-			Name:   "last-modified",
-			Values: []string{mt.UTC().Format(http.TimeFormat)},
-		}
+	if r.Headers["last-modified"].Value() == "" {
+		r.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
 	return r.Write(c)
@@ -673,11 +657,7 @@ func (r *Response) Redirect(url string) error {
 		r.Status = 302
 	}
 
-	r.Headers["location"] = &Header{
-		Name:   "location",
-		Values: []string{url},
-	}
-
+	r.SetHeader("location", url)
 	return r.Write(nil)
 }
 
@@ -691,10 +671,7 @@ func (r *Response) WebSocket() (*WebSocket, error) {
 			vs = append(vs, c.String())
 		}
 
-		r.Headers["set-cookie"] = &Header{
-			Name:   "set-cookie",
-			Values: vs,
-		}
+		r.SetHeaderValues("set-cookie", vs)
 	}
 
 	for n, h := range r.Headers {
