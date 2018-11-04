@@ -536,7 +536,7 @@ func (r *Response) WriteXML(v interface{}) error {
 
 // WriteHTML responds to the client with the "text/html" content h.
 func (r *Response) WriteHTML(h string) error {
-	if AutoPushEnabled && r.request.request.TLS != nil {
+	if AutoPushEnabled && r.request.request.ProtoMajor == 2 {
 		tree, err := html.Parse(strings.NewReader(h))
 		if err != nil {
 			return err
@@ -829,6 +829,11 @@ func (r *Response) WebSocket() (*WebSocket, error) {
 // cannot include HTTP/2 pseudo headers like ":path" and ":scheme", which
 // will be added automatically.
 func (r *Response) Push(target string, headers map[string]*Header) error {
+	p, ok := r.Writer.(http.Pusher)
+	if !ok {
+		return nil
+	}
+
 	var pos *http.PushOptions
 	if l := len(headers); l > 0 {
 		pos = &http.PushOptions{
@@ -840,7 +845,7 @@ func (r *Response) Push(target string, headers map[string]*Header) error {
 		}
 	}
 
-	return r.Writer.(http.Pusher).Push(target, pos)
+	return p.Push(target, pos)
 }
 
 // scanETag determines if a syntactically valid ETag is present at s. If so, the
