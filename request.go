@@ -27,7 +27,7 @@ type Request struct {
 	ClientAddress string
 	Values        obj
 
-	request          *http.Request
+	Request          *http.Request
 	parseCookiesOnce *sync.Once
 	parseParamsOnce  *sync.Once
 }
@@ -153,7 +153,7 @@ func (r *Request) QueryArray(key string) []string {
 // GetQueryArray returns a slice of strings for a given query key, plus
 // a boolean value whether at least one value exists for the given key.
 func (r *Request) GetQueryArray(key string) ([]string, bool) {
-	if values, ok := r.request.URL.Query()[key]; ok && len(values) > 0 {
+	if values, ok := r.Request.URL.Query()[key]; ok && len(values) > 0 {
 		return values, true
 	}
 	return []string{}, false
@@ -175,11 +175,11 @@ func (r *Request) Param(name string) string {
 // routing, it will only take effect on the very first call.
 func (r *Request) ParseParams() {
 	r.parseParamsOnce.Do(func() {
-		if r.request.Form == nil || r.request.MultipartForm == nil {
-			r.request.ParseMultipartForm(32 << 20)
+		if r.Request.Form == nil || r.Request.MultipartForm == nil {
+			r.Request.ParseMultipartForm(32 << 20)
 		}
 
-		for n, vs := range r.request.Form {
+		for n, vs := range r.Request.Form {
 			pvs := make([]*RequestParamValue, 0, len(vs))
 			for _, v := range vs {
 				pvs = append(pvs, &RequestParamValue{
@@ -200,8 +200,8 @@ func (r *Request) ParseParams() {
 			}
 		}
 
-		if r.request.MultipartForm != nil {
-			for n, vs := range r.request.MultipartForm.Value {
+		if r.Request.MultipartForm != nil {
+			for n, vs := range r.Request.MultipartForm.Value {
 				pvs := make([]*RequestParamValue, 0, len(vs))
 				for _, v := range vs {
 					pvs = append(pvs, &RequestParamValue{
@@ -222,7 +222,7 @@ func (r *Request) ParseParams() {
 				}
 			}
 
-			for n, vs := range r.request.MultipartForm.File {
+			for n, vs := range r.Request.MultipartForm.File {
 				pvs := make([]*RequestParamValue, 0, len(vs))
 				for _, v := range vs {
 					pvs = append(pvs, &RequestParamValue{

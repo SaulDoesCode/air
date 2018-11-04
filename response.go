@@ -536,7 +536,7 @@ func (r *Response) WriteXML(v interface{}) error {
 
 // WriteHTML responds to the client with the "text/html" content h.
 func (r *Response) WriteHTML(h string) error {
-	if AutoPushEnabled && r.request.request.ProtoMajor == 2 {
+	if AutoPushEnabled && r.request.Request.ProtoMajor == 2 {
 		tree, err := html.Parse(strings.NewReader(h))
 		if err != nil {
 			return err
@@ -605,9 +605,9 @@ func (r *Response) WriteFile(filename string) error {
 	} else if fi, err := os.Stat(filename); err != nil {
 		return err
 	} else if fi.IsDir() {
-		if p := r.request.request.URL.EscapedPath(); !hasLastSlash(p) {
+		if p := r.request.Request.URL.EscapedPath(); !hasLastSlash(p) {
 			p = path.Base(p) + "/"
-			if q := r.request.request.URL.RawQuery; q != "" {
+			if q := r.request.Request.URL.RawQuery; q != "" {
 				p += "?" + q
 			}
 
@@ -722,7 +722,7 @@ func (r *Response) WebSocket() (*WebSocket, error) {
 		wsu.Subprotocols = WebSocketSubprotocols
 	}
 
-	conn, err := wsu.Upgrade(r.Writer, r.request.request, r.Writer.Header())
+	conn, err := wsu.Upgrade(r.Writer, r.request.Request, r.Writer.Header())
 	if err != nil {
 		return nil, err
 	}

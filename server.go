@@ -142,7 +142,7 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		ClientAddress: r.RemoteAddr,
 		Values:        obj{},
 
-		request:          r,
+		Request:          r,
 		parseCookiesOnce: &sync.Once{},
 		parseParamsOnce:  &sync.Once{},
 	}

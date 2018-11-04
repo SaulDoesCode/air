@@ -230,7 +230,7 @@ func (r *router) insert(
 // route returns a handler registered for the req.
 func (r *router) route(req *Request) Handler {
 	var (
-		p   = req.request.URL.EscapedPath()  // Path
+		p   = req.Request.URL.EscapedPath()  // Path
 		s   = pathClean(p)                   // Search
 		cn  = r.tree                         // Current node
 		nn  *node                            // Next node
