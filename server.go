@@ -14,8 +14,8 @@ import (
 
 // server is an HTTP server.
 type server struct {
-	Server *http.Server
-	NonTLS *http.Server
+	Server     *http.Server
+	H2HSServer *http.Server
 }
 
 // TheServer is the singleton of the `server`.
@@ -39,66 +39,64 @@ func (s *server) serve() error {
 		DEBUG("air: serving in debug mode")
 	}
 
-	if TLSCertFile != "" && TLSKeyFile != "" {
-		host := s.Server.Addr
-		if strings.Contains(host, ":") {
-			var err error
-			if host, _, err = net.SplitHostPort(host); err != nil {
-				return err
-			}
-		}
-
-		s.NonTLS = &http.Server{}
-
-		var h2hs http.HandlerFunc
-		h2hs = func(rw http.ResponseWriter, r *http.Request) {
-			host, _, err := net.SplitHostPort(r.Host)
-			if err != nil {
-				host = r.Host
-			}
-
-			http.Redirect(rw, r, "https://"+host+r.RequestURI, 301)
-		}
-
-		tlsCertFile, tlsKeyFile := TLSCertFile, TLSKeyFile
-		if AutoCert && !(DevAutoCert && DebugMode) {
-			acm := autocert.Manager{
-				Prompt: autocert.AcceptTOS,
-				Cache:  autocert.DirCache(ACMECertRoot),
-			}
-			if len(HostWhitelist) > 0 {
-				acm.HostPolicy = autocert.HostWhitelist(
-					HostWhitelist...,
-				)
-			}
-
-			if MaintainerEmail != "" {
-				acm.Email = MaintainerEmail
-			}
-
-			s.NonTLS.Handler = acm.HTTPHandler(h2hs)
-			s.NonTLS.Addr = host + ":http"
-			go s.NonTLS.ListenAndServe()
-
-			s.Server.Addr = host + ":https"
-			s.Server.TLSConfig = acm.TLSConfig()
-			tlsCertFile, tlsKeyFile = "", ""
-		} else if HTTPSEnforced {
-			s.NonTLS.Handler = h2hs
-			s.NonTLS.Addr = host + ":http"
-			go s.NonTLS.ListenAndServe()
-		}
-
-		return s.Server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+	if TLSCertFile == "" || TLSKeyFile == "" || !HTTPSEnforced {
+		return s.Server.ListenAndServe()
 	}
 
-	return s.Server.ListenAndServe()
+	host := s.Server.Addr
+	if strings.Contains(host, ":") {
+		var err error
+		if host, _, err = net.SplitHostPort(host); err != nil {
+			return err
+		}
+	}
+
+	s.H2HSServer = &http.Server{}
+
+	var h2hs http.HandlerFunc
+	h2hs = func(rw http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.Host)
+		if err != nil {
+			host = r.Host
+		}
+
+		http.Redirect(rw, r, "https://"+host+r.RequestURI, 301)
+	}
+
+	tlsCertFile, tlsKeyFile := TLSCertFile, TLSKeyFile
+	if AutoCert && !(DebugMode && !DevAutoCert) {
+		acm := autocert.Manager{
+			Prompt: autocert.AcceptTOS,
+			Cache:  autocert.DirCache(ACMECertRoot),
+		}
+		if len(HostWhitelist) > 0 {
+			acm.HostPolicy = autocert.HostWhitelist(HostWhitelist...)
+		}
+
+		if MaintainerEmail != "" {
+			acm.Email = MaintainerEmail
+		}
+
+		s.H2HSServer.Handler = acm.HTTPHandler(h2hs)
+		s.H2HSServer.Addr = host + ":http"
+		go s.H2HSServer.ListenAndServe()
+
+		s.Server.Addr = host + ":https"
+		s.Server.TLSConfig = acm.TLSConfig()
+		tlsCertFile, tlsKeyFile = "", ""
+	} else {
+		s.H2HSServer.Handler = h2hs
+		s.H2HSServer.Addr = host + ":http"
+		go s.H2HSServer.ListenAndServe()
+	}
+
+	return s.Server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
 }
 
 // close closes the s immediately.
 func (s *server) close() error {
-	if s.NonTLS != nil {
-		s.NonTLS.Close()
+	if s.H2HSServer != nil {
+		s.H2HSServer.Close()
 	}
 	return s.Server.Close()
 }
@@ -109,8 +107,8 @@ func (s *server) close() error {
 func (s *server) shutdown(timeout time.Duration) error {
 	ctx := context.Background()
 	if timeout <= 0 {
-		if s.NonTLS != nil {
-			s.NonTLS.Shutdown(ctx)
+		if s.H2HSServer != nil {
+			s.H2HSServer.Shutdown(ctx)
 		}
 		return s.Server.Shutdown(ctx)
 	}
@@ -118,8 +116,8 @@ func (s *server) shutdown(timeout time.Duration) error {
 	c, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	if s.NonTLS != nil {
-		s.NonTLS.Shutdown(c)
+	if s.H2HSServer != nil {
+		s.H2HSServer.Shutdown(c)
 	}
 	return s.Server.Shutdown(c)
 }
