@@ -14,8 +14,9 @@ import (
 
 // server is an HTTP server.
 type server struct {
-	Server     *http.Server
-	H2HSServer *http.Server
+	Server           *http.Server
+	H2HSServer       *http.Server
+	InterceptHandler func(http.Handler) http.Handler
 }
 
 // TheServer is the singleton of the `server`.
@@ -26,7 +27,11 @@ var TheServer = &server{
 // serve starts the s.
 func (s *server) serve() error {
 	s.Server.Addr = Address
-	s.Server.Handler = s
+	if s.InterceptHandler != nil {
+		s.Server.Handler = s.InterceptHandler(s)
+	} else {
+		s.Server.Handler = s
+	}
 	s.Server.ReadTimeout = ReadTimeout
 	s.Server.ReadHeaderTimeout = ReadHeaderTimeout
 	s.Server.WriteTimeout = WriteTimeout
