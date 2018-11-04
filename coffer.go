@@ -72,10 +72,10 @@ func (c *coffer) asset(name string) (*asset, error) {
 
 	if a, ok := c.assets[name]; ok {
 		return a, nil
-	} else if ar, err := filepath.Abs(AssetRoot); err != nil {
+	}
+	ar, err := filepath.Abs(AssetRoot)
+	if err != nil || !strings.HasPrefix(name, ar) {
 		return nil, err
-	} else if !strings.HasPrefix(name, ar) {
-		return nil, nil
 	}
 
 	ext := strings.ToLower(filepath.Ext(name))
