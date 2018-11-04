@@ -32,6 +32,16 @@ type Request struct {
 	parseParamsOnce  *sync.Once
 }
 
+// Header fetches the header value
+// or returns an empty string if there's no matching header
+func (r *Request) Header(name string) string {
+	h, ok := r.Headers[name]
+	if ok && h != nil {
+		return h.Value()
+	}
+	return ""
+}
+
 // Bind binds the r into the v.
 func (r *Request) Bind(v interface{}) error {
 	return theBinder.bind(v, r)

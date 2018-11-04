@@ -41,7 +41,7 @@ type Response struct {
 	Writer  http.ResponseWriter
 }
 
-// Header Get a Header if it exists
+// Header get a Header if it exists
 func (r *Response) Header(name string) (string, bool) {
 	val, ok := r.Headers[name]
 	if ok {
@@ -624,7 +624,13 @@ func (r *Response) WriteFile(filename string) error {
 	if a, err := theCoffer.asset(filename); err != nil {
 		return err
 	} else if a != nil {
-		c = bytes.NewReader(a.content)
+		if a.isCompressed && strings.Contains(r.request.Request.Header.Get("accept-encoding"), "gzip") {
+			r.SetHeader("content-encoding", "gzip")
+			r.SetHeader("vary", "accept-encoding")
+			c = bytes.NewReader(a.compressed)
+		} else {
+			c = bytes.NewReader(a.content)
+		}
 		mt = a.modTime
 	} else {
 		f, err := os.Open(filename)

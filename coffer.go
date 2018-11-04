@@ -1,6 +1,8 @@
 package air
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -10,6 +12,11 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+)
+
+var (
+	// Compressable - list of compressable file types, append to it if needed
+	Compressable = []string{"", ".txt", ".htm", ".html", ".css", ".toml", ".php", ".js", ".json", ".md", ".mdown", ".xml", ".svg", ".go", ".cgi", ".py", ".pl", ".aspx", ".asp"}
 )
 
 // coffer is a binary asset file manager that uses runtime memory to reduce disk
@@ -106,12 +113,28 @@ func (c *coffer) asset(name string) (*asset, error) {
 		modTime: fi.ModTime(),
 	}
 
+	for _, cext := range Compressable {
+		if ext == cext {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			if _, err := gz.Write(b); err == nil {
+				gz.Flush()
+			}
+			gz.Close()
+			c.assets[name].compressed = buf.Bytes()
+			c.assets[name].isCompressed = true
+			break
+		}
+	}
+
 	return c.assets[name], nil
 }
 
 // asset is a binary asset file.
 type asset struct {
-	name    string
-	content []byte
-	modTime time.Time
+	name         string
+	content      []byte
+	compressed   []byte
+	modTime      time.Time
+	isCompressed bool
 }
