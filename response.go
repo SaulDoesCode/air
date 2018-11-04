@@ -32,6 +32,7 @@ type Response struct {
 	Status        int
 	Headers       map[string]*Header
 	ContentLength int64
+	Body          io.Writer
 	Cookies       map[string]*Cookie
 	Written       bool
 
@@ -84,7 +85,8 @@ func (r *Response) Write(content io.ReadSeeker) error {
 			r.SetHeader("accept-ranges", "bytes")
 		}
 
-		if r.Headers["content-encoding"].Value() == "" &&
+		if r.ContentLength >= 0 &&
+			r.Headers["transfer-encoding"].Value() == "" &&
 			r.Status >= 200 &&
 			r.Status != 204 &&
 			(r.Status >= 300 || r.request.Method != "CONNECT") {
@@ -887,4 +889,24 @@ type countingWriter int64
 func (w *countingWriter) Write(p []byte) (int, error) {
 	*w += countingWriter(len(p))
 	return len(p), nil
+}
+
+// responseBody provides a convenient way to respond to the client with the
+// streaming content.
+type responseBody struct {
+	response *Response
+}
+
+// Write implements the `io.Writer`.
+func (rb *responseBody) Write(b []byte) (int, error) {
+	if !rb.response.Written {
+		rb.response.ContentLength = -1
+		if err := rb.response.Write(nil); err != nil {
+			return 0, err
+		}
+		rb.response.ContentLength = 0
+	}
+	n, err := rb.response.writer.Write(b)
+	rb.response.ContentLength += int64(n)
+	return n, err
 }
