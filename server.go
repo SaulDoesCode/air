@@ -54,13 +54,12 @@ func (s *server) serve() error {
 	s.H2HSServer = &http.Server{}
 
 	var h2hs http.HandlerFunc
-	h2hs = func(rw http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.Host)
-		if err != nil {
-			host = r.Host
+	h2hs = func(res http.ResponseWriter, req *http.Request) {
+		target := "https://" + req.Host + req.URL.Path
+		if len(req.URL.RawQuery) > 0 {
+			target += "?" + req.URL.RawQuery
 		}
-
-		http.Redirect(rw, r, "https://"+host+r.RequestURI, 301)
+		http.Redirect(res, req, target, 301)
 	}
 
 	tlsCertFile, tlsKeyFile := TLSCertFile, TLSKeyFile
@@ -124,39 +123,6 @@ func (s *server) shutdown(timeout time.Duration) error {
 
 // ServeHTTP implements the `http.Handler`.
 func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	// Check host
-
-	if len(HostWhitelist) > 0 {
-		host, _, err := net.SplitHostPort(r.Host)
-		if err != nil {
-			host = r.Host
-		}
-
-		allowed := false
-		for _, h := range HostWhitelist {
-			if h == host {
-				allowed = true
-				break
-			}
-		}
-
-		if !allowed {
-			scheme := "http"
-			if r.TLS != nil {
-				scheme = "https"
-			}
-
-			http.Redirect(
-				rw,
-				r,
-				scheme+"://"+HostWhitelist[0]+r.RequestURI,
-				301,
-			)
-
-			return
-		}
-	}
-
 	// Request
 
 	req := &Request{
