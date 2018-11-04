@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,7 +38,7 @@ type Response struct {
 	Written       bool
 
 	request *Request
-	writer  http.ResponseWriter
+	Writer  http.ResponseWriter
 }
 
 // Header Get a Header if it exists
@@ -57,6 +58,25 @@ func (r *Response) SetHeader(name string, values ...string) {
 // SetHeaderValues adds a header to the response with an array of string values
 func (r *Response) SetHeaderValues(name string, values []string) {
 	r.Headers[name] = &Header{Name: name, Values: values}
+}
+
+// SetCookie adds a Set-Cookie header to the ResponseWriter's headers.
+// The provided cookie must have a valid Name. Invalid cookies may be
+// silently dropped.
+func (r *Response) SetCookie(name string, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+	if path == "" {
+		path = "/"
+	}
+
+	http.SetCookie(r.Writer, &http.Cookie{
+		Name:     name,
+		Value:    url.QueryEscape(value),
+		MaxAge:   maxAge,
+		Path:     path,
+		Domain:   domain,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+	})
 }
 
 // Write responds to the client with the content.
@@ -104,12 +124,12 @@ func (r *Response) Write(content io.ReadSeeker) error {
 
 		for n, h := range r.Headers {
 			n := textproto.CanonicalMIMEHeaderKey(n)
-			r.writer.Header()[n] = h.Values
+			r.Writer.Header()[n] = h.Values
 		}
 
-		r.writer.WriteHeader(r.Status)
+		r.Writer.WriteHeader(r.Status)
 		if r.request.Method != "HEAD" {
-			io.CopyN(r.writer, reader, r.ContentLength)
+			io.CopyN(r.Writer, reader, r.ContentLength)
 		}
 
 		r.Written = true
@@ -678,7 +698,7 @@ func (r *Response) WebSocket() (*WebSocket, error) {
 
 	for n, h := range r.Headers {
 		n := textproto.CanonicalMIMEHeaderKey(n)
-		r.writer.Header()[n] = h.Values
+		r.Writer.Header()[n] = h.Values
 	}
 
 	r.Written = true
@@ -702,7 +722,7 @@ func (r *Response) WebSocket() (*WebSocket, error) {
 		wsu.Subprotocols = WebSocketSubprotocols
 	}
 
-	conn, err := wsu.Upgrade(r.writer, r.request.request, r.writer.Header())
+	conn, err := wsu.Upgrade(r.Writer, r.request.request, r.Writer.Header())
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +840,7 @@ func (r *Response) Push(target string, headers map[string]*Header) error {
 		}
 	}
 
-	return r.writer.(http.Pusher).Push(target, pos)
+	return r.Writer.(http.Pusher).Push(target, pos)
 }
 
 // scanETag determines if a syntactically valid ETag is present at s. If so, the
@@ -906,7 +926,7 @@ func (rb *responseBody) Write(b []byte) (int, error) {
 		}
 		rb.response.ContentLength = 0
 	}
-	n, err := rb.response.writer.Write(b)
+	n, err := rb.response.Writer.Write(b)
 	rb.response.ContentLength += int64(n)
 	return n, err
 }

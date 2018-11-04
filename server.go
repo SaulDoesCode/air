@@ -218,7 +218,7 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		Cookies: map[string]*Cookie{},
 
 		request: req,
-		writer:  rw,
+		Writer:  rw,
 	}
 	res.Body = &responseBody{
 		response: res,

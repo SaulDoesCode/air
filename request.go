@@ -87,6 +87,20 @@ func (r *Request) ParseCookies() {
 	})
 }
 
+// Cookie gets a cookie's string value
+func (r *Request) Cookie(name string) string {
+	cookie, ok := r.Cookies[name]
+	if !ok || cookie == nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+// RawCookie gets the raw *Cookie
+func (r *Request) RawCookie(name string) *Cookie {
+	return r.Cookies[name]
+}
+
 // Param returns a Route Param's string value if it exists
 func (r *Request) Param(name string) string {
 	if rp, ok := r.Params[name]; ok {
