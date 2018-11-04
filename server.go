@@ -26,7 +26,6 @@ var TheServer = &server{
 // serve starts the s.
 func (s *server) serve() error {
 	s.Server.Addr = Address
-	s.Server.Handler = s
 	s.Server.ReadTimeout = ReadTimeout
 	s.Server.ReadHeaderTimeout = ReadHeaderTimeout
 	s.Server.WriteTimeout = WriteTimeout
