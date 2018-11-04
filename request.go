@@ -101,6 +101,64 @@ func (r *Request) RawCookie(name string) *Cookie {
 	return r.Cookies[name]
 }
 
+// Query returns the keyed url query value if it exists,
+// otherwise it returns an empty string `("")`.
+// It is shortcut for `c.Request.URL.Query().Get(key)`
+//     GET /path?id=1234&name=Manu&value=
+// 	   c.Query("id") == "1234"
+// 	   c.Query("name") == "Manu"
+// 	   c.Query("value") == ""
+// 	   c.Query("wtf") == ""
+func (r *Request) Query(key string) string {
+	value, _ := r.GetQuery(key)
+	return value
+}
+
+// DefaultQuery returns the keyed url query value if it exists,
+// otherwise it returns the specified defaultValue string.
+// See: Query() and GetQuery() for further information.
+//     GET /?name=Manu&lastname=
+//     c.DefaultQuery("name", "unknown") == "Manu"
+//     c.DefaultQuery("id", "none") == "none"
+//     c.DefaultQuery("lastname", "none") == ""
+func (r *Request) DefaultQuery(key, defaultValue string) string {
+	if value, ok := r.GetQuery(key); ok {
+		return value
+	}
+	return defaultValue
+}
+
+// GetQuery is like Query(), it returns the keyed url query value
+// if it exists `(value, true)` (even when the value is an empty string),
+// otherwise it returns `("", false)`.
+// It is shortcut for `c.Request.URL.Query().Get(key)`
+//     GET /?name=Manu&lastname=
+//     ("Manu", true) == c.GetQuery("name")
+//     ("", false) == c.GetQuery("id")
+//     ("", true) == c.GetQuery("lastname")
+func (r *Request) GetQuery(key string) (string, bool) {
+	if values, ok := r.GetQueryArray(key); ok {
+		return values[0], ok
+	}
+	return "", false
+}
+
+// QueryArray returns a slice of strings for a given query key.
+// The length of the slice depends on the number of params with the given key.
+func (r *Request) QueryArray(key string) []string {
+	values, _ := r.GetQueryArray(key)
+	return values
+}
+
+// GetQueryArray returns a slice of strings for a given query key, plus
+// a boolean value whether at least one value exists for the given key.
+func (r *Request) GetQueryArray(key string) ([]string, bool) {
+	if values, ok := r.request.URL.Query()[key]; ok && len(values) > 0 {
+		return values, true
+	}
+	return []string{}, false
+}
+
 // Param returns a Route Param's string value if it exists
 func (r *Request) Param(name string) string {
 	if rp, ok := r.Params[name]; ok {
