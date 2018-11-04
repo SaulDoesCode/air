@@ -18,6 +18,12 @@ import (
 // It is called "app_name" in the configuration file.
 var AppName = "air"
 
+// MaintainerEmail is the e-mail address of the one who is responsible for
+// maintaining the current web application.
+//
+// It is called "maintainer_email" in the configuration file.
+var MaintainerEmail = ""
+
 // AutoCert sets whether or not to use let's encrypt for TLS
 var AutoCert = false
 
@@ -77,9 +83,6 @@ var IdleTimeout = time.Duration(0)
 //
 // It is called "max_header_bytes" in the configuration file.
 var MaxHeaderBytes = 1 << 20
-
-// MaintainerEmail is used for autocert/letsencrypt
-var MaintainerEmail = ""
 
 // TLSCertFile is the path to the TLS certificate file used when starting the
 // server.
@@ -261,6 +264,10 @@ func init() {
 		DebugMode = v
 	}
 
+	if v, ok := Config["maintainer_email"].(string); ok {
+		MaintainerEmail = v
+	}
+
 	if v, ok := Config["logger_lowest_level"].(string); ok {
 		switch v {
 		case LoggerLevelDebug.String():
@@ -311,10 +318,6 @@ func init() {
 
 	if v, ok := Config["max_header_bytes"].(int64); ok {
 		MaxHeaderBytes = int(v)
-	}
-
-	if v, ok := Config["maintainer_email"].(string); ok {
-		MaintainerEmail = v
 	}
 
 	if v, ok := Config["tls_cert_file"].(string); ok {
