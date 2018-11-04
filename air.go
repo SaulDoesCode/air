@@ -98,7 +98,7 @@ var TLSKeyFile = ""
 // HTTPSEnforced indicates whether the HTTPS is enforced.
 //
 // It is called "https_enforced" in the configuration file.
-var HTTPSEnforced = false
+var HTTPSEnforced = true
 
 // ACMECertRoot is the root of the ACME certificates.
 //
