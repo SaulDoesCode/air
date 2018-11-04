@@ -88,12 +88,12 @@ func (r *Request) ParseCookies() {
 }
 
 // Cookie gets a cookie's string value
-func (r *Request) Cookie(name string) string {
+func (r *Request) Cookie(name string) (string, bool) {
 	cookie, ok := r.Cookies[name]
-	if !ok || cookie == nil {
-		return ""
+	if !ok || cookie == nil || cookie.Value == "" {
+		return "", false
 	}
-	return cookie.Value
+	return cookie.Value, true
 }
 
 // RawCookie gets the raw *Cookie
