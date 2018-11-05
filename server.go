@@ -72,13 +72,11 @@ func (s *server) serve() error {
 		acm := autocert.Manager{
 			Prompt: autocert.AcceptTOS,
 			Cache:  autocert.DirCache(ACMECertRoot),
-		}
-		if len(HostWhitelist) > 0 {
-			acm.HostPolicy = autocert.HostWhitelist(HostWhitelist...)
+			Email:  MaintainerEmail,
 		}
 
-		if MaintainerEmail != "" {
-			acm.Email = MaintainerEmail
+		if len(HostWhitelist) > 0 {
+			acm.HostPolicy = autocert.HostWhitelist(HostWhitelist...)
 		}
 
 		s.H2HSServer.Handler = acm.HTTPHandler(h2hs)
