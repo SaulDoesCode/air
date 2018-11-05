@@ -628,7 +628,10 @@ func (r *Response) WriteFile(filename string) error {
 	if a, err := theCoffer.asset(filename); err != nil {
 		return err
 	} else if a != nil {
-		if a.isCompressed && strings.Contains(r.request.Request.Header.Get("accept-encoding"), "gzip") {
+		if a.isCompressed && strings.Contains(
+			r.request.Request.Header.Get("accept-encoding"),
+			"gzip",
+		) {
 			r.SetHeader("content-encoding", "gzip")
 			r.SetHeader("vary", "accept-encoding")
 			c = bytes.NewReader(a.compressed)
