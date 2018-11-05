@@ -3,6 +3,7 @@ package air
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -78,13 +79,9 @@ func (c *coffer) asset(name string) (*asset, error) {
 		return nil, err
 	}
 
-	ext := strings.ToLower(filepath.Ext(name))
-	for i := range AssetExts {
-		if strings.ToLower(AssetExts[i]) == ext {
-			break
-		} else if i == len(AssetExts)-1 {
-			return nil, nil
-		}
+	ext := filepath.Ext(name)
+	if stringsContainsCI(AssetExts, ext) {
+		return nil, nil
 	}
 
 	fi, err := os.Stat(name)
@@ -97,7 +94,8 @@ func (c *coffer) asset(name string) (*asset, error) {
 		return nil, err
 	}
 
-	if mt := mime.TypeByExtension(ext); mt != "" {
+	mt := mime.TypeByExtension(ext)
+	if mt != "" {
 		if b, err = theMinifier.minify(mt, b); err != nil {
 			return nil, err
 		}
@@ -108,9 +106,11 @@ func (c *coffer) asset(name string) (*asset, error) {
 	}
 
 	c.assets[name] = &asset{
-		name:    name,
-		content: b,
-		modTime: fi.ModTime(),
+		name:     name,
+		mimeType: mt,
+		content:  b,
+		checksum: sha256.Sum256(b),
+		modTime:  fi.ModTime(),
 	}
 
 	for _, cext := range Compressable {
@@ -135,6 +135,23 @@ type asset struct {
 	name         string
 	content      []byte
 	compressed   []byte
-	modTime      time.Time
 	isCompressed bool
+	mimeType     string
+	checksum     [sha256.Size]byte
+	modTime      time.Time
+}
+
+// stringsContainsCI is a case-insensitive alternative to strings.Contains.
+//
+// it returns true if and only if the list contains a certain matching string
+// with any arbitrary variation of character case
+func stringsContainsCI(list []string, match string) bool {
+	match = strings.ToLower(match)
+	for _, str := range list {
+		if strings.ToLower(str) == match {
+			return true
+		}
+	}
+
+	return false
 }
