@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -295,7 +296,7 @@ func init() {
 		HostWhitelist = make([]string, 0, len(v))
 		for _, v := range v {
 			if v, ok := v.(string); ok {
-				HostWhitelist = append(HostWhitelist, v)
+				HostWhitelist = append(HostWhitelist, strings.ToLower(v))
 			}
 		}
 	}
