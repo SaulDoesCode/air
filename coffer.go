@@ -141,10 +141,8 @@ type asset struct {
 	modTime      time.Time
 }
 
-// stringsContainsCI is a case-insensitive alternative to strings.Contains.
-//
-// it returns true if and only if the list contains a certain matching string
-// with any arbitrary variation of character case
+// stringsContainsCI reports whether a []string contains a particular string
+// regardless of it being uppercase, lowercase or mixed.
 func stringsContainsCI(list []string, match string) bool {
 	match = strings.ToLower(match)
 	for _, str := range list {
